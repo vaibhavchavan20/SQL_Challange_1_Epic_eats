@@ -7,16 +7,18 @@ Epic Eats is a popular restaurant chain with several locations across the city. 
 **Problem Statement:**
 
 Rahul, the owner of Epic Eats, wants to leverage data to gain a deeper understanding of his customers' visiting patterns, spending habits, and favorite menu items. This insight will enable him to deliver a more personalized experience for his loyal customers.
+
 Rahul aims to use these findings to inform his decision to expand the existing customer loyalty program. Additionally, he needs help generating basic datasets that his team can easily inspect without requiring SQL expertise.
+
 Due to privacy concerns, Rahul has shared a sample of his overall customer data. He hopes this sample is sufficient for you to write fully functional SQL queries to answer his questions.
 
 Rahul has provided three key datasets for this case study:
-•
-sales
-•
-menu
-•
-members
+
+• sales
+
+• menu
+
+• members
 
 **Example Datasets:**
 
