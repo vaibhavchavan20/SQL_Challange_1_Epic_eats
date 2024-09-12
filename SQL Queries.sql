@@ -1,0 +1,294 @@
+-- 1. What is the total amount each customer spent at Epic Eats?
+
+SELECT 
+  sales.customer_id, 
+  SUM(menu.price) AS total_sales
+FROM sales 
+INNER JOIN menu 
+  ON sales.product_id = menu.product_id
+GROUP BY sales.customer_id
+ORDER BY sales.customer_id; 
+
+-- 2. How many days has each customer visited Epic Eats?
+
+SELECT 	
+    customer_id, 
+    COUNT(DISTINCT(order_date)) AS days_visited
+FROM sales
+GROUP BY customer_id;
+
+
+-- 3. What was the first item from the menu purchased by each customer?
+
+SELECT 
+	customer_id, 
+    product_name AS first_product_ordered
+FROM (
+    SELECT 
+        sales.customer_id, 
+        menu.product_name,
+        DENSE_RANK() OVER (
+					PARTITION BY sales.customer_id 
+                    ORDER BY sales.order_date) AS densrank
+    FROM sales
+    INNER JOIN menu
+		ON sales.product_id = menu.product_id
+) AS sales_rank
+WHERE densrank = 1
+GROUP BY customer_id, product_name;
+
+
+-- 4. What is the most purchased item on the menu and 
+--    how many times was it purchased by all customers?
+
+-- Part 1
+
+SELECT 
+	menu.product_name AS most_purchased_item,
+    COUNT(sales.product_id) AS purchase_count
+FROM sales 
+INNER JOIN menu 
+	ON sales.product_id = menu.product_id
+GROUP BY menu.product_name
+ORDER BY purchase_count DESC
+LIMIT 1;  -- this gives the most purchased item on menu
+
+-- Part 2
+
+SELECT                                -- part 2
+    sales.customer_id,
+    COUNT(sales.product_id) AS purchase_count
+FROM sales 
+INNER JOIN menu 
+	ON sales.product_id = menu.product_id
+WHERE sales.product_id = (SELECT product_id
+					     FROM sales
+					     GROUP BY product_id
+					     ORDER BY COUNT(product_id)
+                         DESC LIMIT 1)
+GROUP BY sales.customer_id , 
+		sales.product_id, 
+        menu.product_name
+ORDER BY purchase_count DESC;  
+
+-- this gives the list of customers who have purchased highest purchased item
+
+
+-- 5. Which item was the most popular for each customer?
+
+WITH cte_popular_products AS (
+    SELECT 
+        sales.customer_id,
+        menu.product_name,
+        COUNT(*) AS purchase_count,
+        DENSE_RANK() OVER (
+					PARTITION BY sales.customer_id 
+                    ORDER BY COUNT(*) DESC) AS densrank
+    FROM sales 
+    JOIN menu ON sales.product_id = menu.product_id
+    GROUP BY sales.customer_id, menu.product_name
+)
+SELECT 
+    customer_id,
+    product_name,
+    purchase_count
+FROM cte_popular_products
+WHERE densrank = 1;
+
+
+-- 6. Which item was purchased first by the customer after they became a member?
+
+WITH cte_after_membership AS (
+  SELECT
+    members.customer_id, 
+    sales.product_id,
+    DENSE_RANK() OVER (
+      PARTITION BY members.customer_id
+      ORDER BY sales.order_date) AS densrank
+  FROM members
+  INNER JOIN sales
+    ON members.customer_id = sales.customer_id
+    AND sales.order_date > members.join_date
+)
+SELECT 
+  cte_after_membership.customer_id, 
+  menu.product_name 
+FROM cte_after_membership
+INNER JOIN menu
+  ON cte_after_membership.product_id = menu.product_id
+WHERE densrank = 1
+ORDER BY cte_after_membership.customer_id ASC;
+
+
+-- 7. Which item was purchased just before the customer became a member?
+
+WITH cte_before_membership AS (
+  SELECT
+    members.customer_id, 
+    sales.product_id,
+    DENSE_RANK() OVER (
+      PARTITION BY members.customer_id
+      ORDER BY sales.order_date) AS densrank
+  FROM members
+  INNER JOIN sales
+    ON members.customer_id = sales.customer_id
+    AND sales.order_date < members.join_date
+)
+SELECT 
+  cte_before_membership.customer_id, 
+  menu.product_name 
+FROM cte_before_membership
+INNER JOIN menu
+  ON cte_before_membership.product_id = menu.product_id
+WHERE densrank = 1
+ORDER BY cte_before_membership.customer_id ASC;	
+
+-- 8. What is the total items and amount spent for each member before they became a member?
+
+SELECT 
+    sales.customer_id,
+    COUNT(sales.product_id) AS total_items,
+    SUM(menu.price) AS total_amount_spent
+FROM sales
+JOIN members ON sales.customer_id = members.customer_id
+JOIN menu ON sales.product_id = menu.product_id
+WHERE sales.order_date < members.join_date
+GROUP BY sales.customer_id
+ORDER BY sales.customer_id;
+
+
+-- 9. If each $1 spent equates to 10 points and Sandwich has a 2x points multiplier 
+--    how many points would each customer have?
+
+SELECT 
+    sales.customer_id,
+    SUM(menu.price) AS total_price,
+    SUM(CASE
+        WHEN menu.product_name = 'sandwich' THEN menu.price * 20
+        ELSE menu.price * 10
+    END) AS total_points
+FROM sales
+	JOIN menu ON sales.product_id = menu.product_id
+GROUP BY customer_id;
+
+
+WITH cte_points AS (
+  SELECT 
+    product_id, 
+    price,
+    CASE
+      WHEN product_name = 'sandwich' THEN price * 20
+      ELSE price * 10 END AS points
+  FROM menu
+)
+SELECT 
+  sales.customer_id, 
+  SUM(price),
+  SUM(cte_points.points) AS total_points
+FROM sales
+INNER JOIN cte_points
+  ON sales.product_id = cte_points.product_id
+GROUP BY sales.customer_id
+ORDER BY sales.customer_id;
+
+
+-- 10. In the first week after a customer joins the program (including their join date) 
+--     they earn 2x points on all items, not just Sandwich  
+--     how many points do customer AAA and BBB have at the end of January?
+
+SELECT sysdate(),DATE_ADD(sysdate(),INTERVAL 6 DAY) FROM DUAL;
+
+SELECT
+	sales.customer_id,
+    SUM(menu.price) AS total_price,
+    SUM(CASE
+			WHEN sales.order_date BETWEEN members.join_date AND DATE_ADD(members.join_date, INTERVAL 6 DAY) THEN menu.price*2*10
+            ELSE CASE 
+					WHEN product_name = 'sandwich' THEN price * 20
+					ELSE price * 10 
+                    END
+			END) AS points
+FROM sales
+INNER JOIN menu ON sales.product_id = menu.product_id
+INNER JOIN members ON sales.customer_id = members.customer_id
+WHERE sales.order_date <='2024-01-31'
+AND sales.customer_id IN ('AAA', 'BBB')
+GROUP BY sales.customer_id
+ORDER BY sales.customer_id;
+
+
+/*
+Bonus Questions
+
+Q1. Join All The Things
+
+Recreate the table with: customer_id, order_date, product_name, price, member_status (Y/N) 
+
+ */  
+    
+SELECT 
+  sales.customer_id, 
+  sales.order_date,  
+  menu.product_name, 
+  menu.price,
+  CASE
+    WHEN sales.order_date >= members.join_date THEN 'Y'
+    ELSE 'N' END AS member_status
+FROM sales
+LEFT JOIN members
+  ON sales.customer_id = members.customer_id
+INNER JOIN menu
+  ON sales.product_id = menu.product_id
+ORDER BY members.customer_id, sales.order_date;
+    
+/*   
+Q2. Rank All The Things
+
+Rahul also requires further information about the ranking of customer products, 
+but he purposely does not need the ranking for non-member purchases so he expects null ranking values 
+for the records when customers are not yet part of the loyalty program.    
+*/    
+    
+ WITH cte_all_joined AS (
+    SELECT
+        s.customer_id,
+        s.order_date AS order_date,
+        m.product_name,
+        m.price,
+        CASE
+            WHEN s.customer_id IS NOT NULL
+                 AND s.order_date >= mm.join_date THEN 'Y'
+            ELSE 'N'
+        END AS member_status
+    FROM sales s
+    INNER JOIN menu m ON s.product_id = m.product_id
+    LEFT JOIN members mm ON s.customer_id = mm.customer_id
+)
+SELECT
+    *,
+    CASE
+        WHEN member_status = 'Y' THEN
+            DENSE_RANK() OVER (
+				PARTITION BY customer_id 
+                ORDER BY order_date)
+        ELSE
+            NULL
+    END AS ranking
+FROM
+    cte_all_joined
+ORDER BY
+    customer_id,
+    order_date,
+    product_name;   
+    
+    
+ /*  
+   
+For more such SQL Challenges and Data Analysis related stuff, Subscribe my youtube channel www.youtube.com/One_Analytics 
+Github: www.github.com/vaibhavchavan20
+LinkedIn: www.linkedin.com/in/vaibhav-chavan
+Youtube: http://www.youtube.com/One_Analytics 
+WhatsApp: www.bit.ly/WhatsAppOneAnalytics 
+   
+*/
+    
