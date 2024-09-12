@@ -24,12 +24,17 @@ Rahul has provided three key datasets for this case study:
 
 All datasets exist within the Epic Eats database files listed above - be sure to include this reference within your SQL scripts as you start exploring the data and answering the case study questions.
 
-**** Refer all files in this repository for the complete case study solution. I have attaced all input datasets, SQL Queries and the output also. **
-**
+Refer all files in this repository for the complete case study solution. I have attaced all input datasets, SQL Queries and the output also.
 
 That was a fun experience! I deepened my understanding of using CTEs, ranking functions, CASE statements, and joins to analyze Rahul’s customer data effectively.
+
 For more such SQL Challenges and Data Analysis related stuff, Subscribe my youtube channel www.youtube.com/One_Analytics
+
 Github: www.github.com/vaibhavchavan20
+
 LinkedIn: www.linkedin.com/in/vaibhav-chavan
+
 Youtube: http://www.youtube.com/@One_Analytics
+
 WhatsApp: www.bit.ly/WhatsAppOneAnalytics
+
