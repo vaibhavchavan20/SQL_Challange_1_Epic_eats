@@ -1,4 +1,4 @@
-# SQL_Challange-1
+# SQL_Challange_1 Epic Eats
 
 **Background:**
 
